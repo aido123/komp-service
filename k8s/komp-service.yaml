@@ -1,0 +1,335 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: komp-service-deployment
+  labels:
+    app: komp-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: komp-service
+  template:
+    metadata:
+      labels:
+        app: komp-service
+    spec:
+      containers:
+      - name: komp-service
+        image: aido123/komp-service:v9
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - mountPath: "/db"
+          name: volume
+      serviceAccountName: komp-service
+      volumes:
+        - name: volume
+          persistentVolumeClaim:
+            claimName: komp-service
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: komp-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: komp-service
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: komp-service
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  tls:
+  - hosts:
+      - kompservice.hynes.pri
+    secretName: tls-secret-svc
+  rules:
+  - host: kompservice.hynes.pri
+    http:
+      paths:
+      - backend:
+          serviceName: komp-service
+          servicePort: 80
+        path: /(.*)
+
+---
+apiVersion: v1
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUZGVENDQXYyZ0F3SUJBZ0lKQUtneDFLSTY0ZkpITUEwR0NTcUdTSWIzRFFFQkN3VUFNQ0V4SHpBZEJnTlYKQkFNTUZtdHZiWEJ6WlhKMmFXTmxMbWg1Ym1WekxuQnlhWFl3SGhjTk1qQXhNVEkzTWpJMU9UTTJXaGNOTWpFeApNVEkzTWpJMU9UTTJXakFoTVI4d0hRWURWUVFEREJacmIyMXdjMlZ5ZG1salpTNW9lVzVsY3k1d2NtbDJNSUlDCklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FnOEFNSUlDQ2dLQ0FnRUF6Q2NnSU53T3Z2VjJoVTVGa0hyNHB2SkMKSHZmV1I3V3BaV2dwN1QzbWE1clZ6SWVCTDZNQWhWZVBCZzkyQmFZdG84citvby8yUUJqN2J0Ti9aUE9LU2ZjVAovWmRtbWpuMDljOGtuY3lWWE1BVVhwZmVvT2lTbVhBc1hORTNWSm5Mb1JQQzBwc2JpbmdmUmRHMjZoVmg3V3prClV3alluYVJjbkpZVmxReEhjYnk1dlovZU1QTG56eXhoWEZDbWRObzJPclN2SGwzVzBXaWVYdVJ2M2lUR2hVWTUKeGZDL1V2L2cyUm02dTdnenFxL25pUFBFL0l3MUUzMjBkUXVFZnVyTTZQZTBaRm4vS3NlSFV1cEhMQWFTbEdoTwpYV2ZMdFlheThmOUE3TkRyZ3FPMHpyM04yQ0ZvZWlBRXh0b0hEcVhpUkl6RndGVXhaQ3lQd1JheEtWVGloODFJCmlJOFVNOFE1YlFqODRHSlBpMzY5RGQxZlBUUHptbnNiM0FraURFaFlCeXFEUGE2dVZBQ2JuTkxWQUNoT2RtVFUKRW1WQUI2TE9iaU4va2w0RG9USmt6aGlrNjhUZTZ5cmZEd1BCdTkrdUJtNnJ4Q3JMeUxndXVKU24yM3BXUWwvSwpPMUJZcGhzZ3hQazJjSFJIUXlzTUhSTGlOSVBHUFdZMk1keDdVY3luNVdvT1NHdlRvWHppRm00UVVEUEhTaUZVCi92cDlBQkxNNHhSZCtKdWFUUVF6S2JDbjBLK0NqZy9yNDdwb2pVcm45K0xkcS9ZYlM1ZUxmQUdiVU95Skg5S0UKeW82LzVmYnIxZDc4cC9pV21QaEdhU1Q0dHlSUVMyRUc3a2pXejZ2U3QwL3BYVFRZSm5BL2JpRGVFWFZlZWpKZwpiallUb0JxSDBteUc5bVUyMGk4Q0F3RUFBYU5RTUU0d0hRWURWUjBPQkJZRUZKTVExOGVCZ241anFlTkdFcGpGClB4Slc3WWc1TUI4R0ExVWRJd1FZTUJhQUZKTVExOGVCZ241anFlTkdFcGpGUHhKVzdZZzVNQXdHQTFVZEV3UUYKTUFNQkFmOHdEUVlKS29aSWh2Y05BUUVMQlFBRGdnSUJBRDZRbkl4Si9YM2M3VUp2Mks1WCtuWnJXU1lRa2p1UQovR2h5L1JHeGZHZ2hXalYyUnpuekJDNDdwV3VEaytOWllESXBHaVZIYWw1QkNOQkViN1VsUWZJSW1kMEZSZDNDCjZjVWExak84ODBQZDQ2Si9qUGNwazhPOVAzZ1cwbzBLaVUvNytPK3FjSFhHbkkyVEdqZVBsaGRSZ1VBOEFzYW8KcEoreFMzQm9TazdDUHJwWW9hZXBTT042cnd3bFN0NTliQkw0YVN5dTlzd2dGbjdQVTYvNFVXK2tEVVBGcjBXMwozZ0J4ZmpBbEQ5L0U2VnRBYnlZOHlaZ0lySjN5Z3BvbUxBYWJ6UUJ0MjMwVW9veGo5LzNQMy9Lc2h0WCtqS1BGCm9XTzlxZmxFcmd0U3ZBakUzVXd0YnRqbnBSaXQ5eVdtYm1kWkJKWnV1S0Z3SVNBQnVKdVZXTTd4NG0zcWloeSsKT1BxZG5KcUFObDZGS2lURUg2NUFCSmhrNGFmTmFMWUROSStsZVlKYm9Qd1pHLzJZK1RTZ3NlOEJIa1BjSkRXWgpLWjIwTEZTSW1HM2lvR3VYUVBmc2svN3owMEt6OFBnSS8zZ3RveDQ1TWxyeVowSlZoZUtZVlhHN0FFQzZleDJWCmRadXZVbVFOYTZIdmQzdnJPMUNhemVPMGs1NGM0ellXaFBPRWY1bWdOVitYalpIZFgyam52L1JVRURxdUIvQXgKRTNEMzUwU2VlakVraElsV2tSMTRWbjBRSnAvenNrUkpJM2tCdDZ3NWZUemdVQjI0dFRyNG5vVjNuSUZOZUIySwpyTytVSWM5LytXNUJMYTFDZklaeFFOSHhpMDJmc3RJVmtwOS9HaUNGemV1UC9TWlB5bEdnUmpOQmgwZllJNXdSCmllMHR4UGNDZzErLwotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlKS1FJQkFBS0NBZ0VBekNjZ0lOd092dlYyaFU1RmtIcjRwdkpDSHZmV1I3V3BaV2dwN1QzbWE1clZ6SWVCCkw2TUFoVmVQQmc5MkJhWXRvOHIrb28vMlFCajdidE4vWlBPS1NmY1QvWmRtbWpuMDljOGtuY3lWWE1BVVhwZmUKb09pU21YQXNYTkUzVkpuTG9SUEMwcHNiaW5nZlJkRzI2aFZoN1d6a1V3alluYVJjbkpZVmxReEhjYnk1dlovZQpNUExuenl4aFhGQ21kTm8yT3JTdkhsM1cwV2llWHVSdjNpVEdoVVk1eGZDL1V2L2cyUm02dTdnenFxL25pUFBFCi9JdzFFMzIwZFF1RWZ1ck02UGUwWkZuL0tzZUhVdXBITEFhU2xHaE9YV2ZMdFlheThmOUE3TkRyZ3FPMHpyM04KMkNGb2VpQUV4dG9IRHFYaVJJekZ3RlV4WkN5UHdSYXhLVlRpaDgxSWlJOFVNOFE1YlFqODRHSlBpMzY5RGQxZgpQVFB6bW5zYjNBa2lERWhZQnlxRFBhNnVWQUNibk5MVkFDaE9kbVRVRW1WQUI2TE9iaU4va2w0RG9USmt6aGlrCjY4VGU2eXJmRHdQQnU5K3VCbTZyeENyTHlMZ3V1SlNuMjNwV1FsL0tPMUJZcGhzZ3hQazJjSFJIUXlzTUhSTGkKTklQR1BXWTJNZHg3VWN5bjVXb09TR3ZUb1h6aUZtNFFVRFBIU2lGVS92cDlBQkxNNHhSZCtKdWFUUVF6S2JDbgowSytDamcvcjQ3cG9qVXJuOStMZHEvWWJTNWVMZkFHYlVPeUpIOUtFeW82LzVmYnIxZDc4cC9pV21QaEdhU1Q0CnR5UlFTMkVHN2tqV3o2dlN0MC9wWFRUWUpuQS9iaURlRVhWZWVqSmdiallUb0JxSDBteUc5bVUyMGk4Q0F3RUEKQVFLQ0FnRUF3TElSZGxLZnJJaitWUGM3WEJObVRoWU9hVEtmVkZKWTBQblAwVG1ERzRBclc0RnZZNnBrbkhlMwo3UTE4NWZvanpCMlgyWk11NlBOcnFBRURseUwxSGJtVWFlR1ZHKytta3JueG91eHU4dnZ1ZmhhMU1ZWTBrWlc2Cm1lVjBaMnMvTkF2MThWb3NWYmZxTkxtdEFDZ3NwYkVKbG9LY0M3Z1BIbEhmank3bTVLa3hYSlhnWUsxMk5pdDYKdm1yMW93Z3c5WnFFVEpKZ2FJcHFLY0ZQQWd3T1FjKzJTbXBoL0pLL0JjeHVZQytPdlFhSjhjKzkyRzd5empIeAp1aVNqN0RQdU05dFNyd0h2Z3M2UW9hZTJoQXkwSUZhUDJVUldtRUhLOS9acHJ0M0gzaWh0U2xNSFQ0REJIN3pICkpYYTRBSkI5RVIwYXJ0NzYzc1hjN25GZnlWWnc5ZlB6ZFJ3OUtLWURUdytNOU1aSjR3VTUyQndiUjJBUzBEQlQKSkQycGVVb3BOTCsvcE5ybW9kSHYwN2VuMklwRmplL2dyZHdPWnpBeXl0MGJadW11cXNHbnhKT0xyanJxaWNFQgpTdDB5YVpNRURQck9TUlA1SkVUa09BbGpSWEpTQjRGdTZleXBQWTduWDJKK2hla2VWOGZkanFaYmFQQ21Td1BwCmZQY3RRT2ZTb21WQUUvRmNQTDRYQWRhNFBCTnU3TWY3aXhWTFM0RW5IVzg3am81R2IrK2NvMzlYcFcxSmNLc3YKVGFGdGN3SmNqY3BZZmI4eFBZcEU5WjU0YlhFaFE1bDR4bDFsNlZ3TU1DdWt0TzFhM3dOVTFGMG9xRGRaVWxBego3M1VYSDVrbDZEeFppdXhrVVZyaXd1TWY1ZlFXQllxWGFhNjFWMk5qdzRXUnd3eXhYbmtDZ2dFQkFPeGpOd3hvCmIxYzZLUVlIbFhZdEV1QlBTbVdpamRyZHFsNklsZ1BRSUo4cDRmYnVNa0lnN2M3SG5ZZWE0RE9zcEh4Wjh5d24KaDdSbXF0SGxaSCsyTlNmRjFRYnl2Y0JQcUdZNFp2Z0F5ejhIdTJVTVpBWlU1NXNUNE5XQnJXS3o2ZVlPVlM5WgpvWmxtN25IQ1NxKzlKMHNha1gzdVJKOFRMNW15VFpJMEtneEZqN0srb3VzdUtYejVsSlcvTXE4SlVLdXZjVDVmCmY3TDVXYkFTeDZDdlhyTE1QWEwza2Rab3hTZWtNS0Z5Qzdsd20zY0EvMjF6ejdvdGZsNmhnYmkyczQ5RGt4WWIKQ0ZrV09Yek9XWGpRK2NzY2pKNHBjNlZBcm1VTVRCbVhKUERTdnBwL2VJb0RFTWtPenNyUlViMDhoTGRaK3lpZwpKa0tpdjZuT3NQbWREZlVDZ2dFQkFOMFhRYnBJUWtWZ04zai91bjFjd1hlcERzcXZ1S3FUTkJLVVh6dWxnMStqClY1L2QrbUpBL2dUMTU2cGRDQ05yeEZIZlZDV0VBTW1hSzBDR3BEa3ZOSmZoWmV2YmJzVUN1SHJWV000Yk5GbjEKVHZZZ0VLbWRIeWczL0drb3hvbW9vd0xZMy9YUnNEWE9kRnlVYmdzQ0F5OFlFV0RLcStMVS83RzRpSVIwamIwdQowSDd5bS8yVjBpUlJ2V2NINGRzZnN1TVdKTldQbTRNcmtrVjh0NHJYSTlnckIrTEhWc2JjOTJaeDNmR2x1ZDFBClVhL0czMHdadjFUbmJ0NzJYZGNCazlQTDhDQy9GNDRQZjU4OWNFWFBTOExYNmNsRjM4RnpxbWN4VXhEUStpelEKTXlyUVhrV0k0RTIyVDhkMitXSm90aGJvZkdlcEtORmZPM1BiUURtRkJSTUNnZ0VCQU4rYnNyVVFEVktyOTZaMgpnaEc1N1lNMlBpQUtOcm4wdVhhWEthRU52ZTRSeG1pNVJkMThITGhmNTBvaFhUaEVkWXdUNG8zQUR3UzlvWlRQCnM5T0RYcUR5Nk9LYnVKYzBRdzMvQ0poTTEvWVZzRlNUOWdKdlNtOU56SDdySGtLaUFmM1hUUWx2ZGdnUWNEbzQKR2tKSFllWVBpZFZnRUpXUnBwTnpNU0crS3BCVk5PdFduZkp1Umx5c0VydmNrMnMwR3BWdGJtZ2NHa1lJemFoYQorMitxdEovWng3NzdKWDkydUJrWm5jNzZmTkM4RHJQeHc2MmJ3Y0pSeXBwbG1McE1TV3FaOTRjUHAwUHVYQThOCmUyRm4vUUwvVEoxSWhOYXJhc3kzWnoxRjFuSGdTT0VJOTlORnR4a1o0cy9FVmRmMmFXeXZ0My9ram95Mk95dTgKRTNqcjhna0NnZ0VBV2dyMXZ1dGM2aXBValZnQldMc2xKQm5iSjF0SHAxaktWV0xPSWxtM1ZvVU0wOVF3L0VFaAo4MTAvRzVoR0R6Nzl0cVp3KzlKMkM2VlpSaTlQeE9aZjBoZC9UZjZSYjNVN012T2U5bG9JQ1RjcUVIMWdxK09NCjQvRmhRR2JWN1F5Y1R6V0tpTy84aHYxdFVLTTI2ZzdJd3k1WExZZDlWNldOK1pDQk1RalREU0I2MDZqMU5PTUcKc2JvRW5HaU9hSkxSWlVFSWdWMjZaVUtpa09CSlZDZG90c3BYck5tb2t0YzlmeUNTMXE2N01zdldPUE9TejhpUQpyd0NPbkFuVWtCTlpaR0hqaTBLb1VqZ25ydS96d01xN1BVQjRPM3ZVdEZIcUxacmVETFEvbjI2djJCa0N1K2tTCkNUUmQ2NHVkNTZGanY1S3h6L29KNExPYllBVUVkQ2lqdHdLQ0FRQkU0cUNLYzRLY010SlBnSXlPMW5GT1h5dlAKODBZQzVFWDlTOVFGdXlmVU1kVVZFblZXT3psNFdiVHoxcU9pcDQ2UVd0WTRwS3NIM3BsOHhlK3BUangyMEY2NgpsU3h5MVczeW5tMG5ST1U5QVU2d3dqYlZkYi9ORGZoSnhxNzFVT1RLUHRuTkE2WUpBb3hWRm9ZRUhYTUlTK0RuCjhpZkVyQkx2LzVpMVZDVXNvdGFRQnNHNTljUXVFMEo1eWV5UFNhNHpqZTJXQW5paGtQT1dlSGN6YUZ4M1ZHalkKeXN5bTJYaThOYUJZcW9LcnBZWWZ5Qzl3RzloMWNZc1VDV2F3VGlOd0hIV0wwN1ZCQXFXcGMzTTJoM2RsS1d3cgpHZlNwY1U0UlZRYjVwNFJqdktoRXNVejJKbnM5UUtGSkRsQkFaMGFyTm41d1pEQU9nYmxYYlpDQXp4T1cKLS0tLS1FTkQgUlNBIFBSSVZBVEUgS0VZLS0tLS0K
+kind: Secret
+metadata:
+  creationTimestamp: null
+  name: tls-secret-svc
+type: kubernetes.io/tls
+
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: komp-service
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: komp-service
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: komp-service
+    namespace: default
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: komp-service
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - pods/attach
+      - pods/exec
+      - pods/portforward
+      - pods/proxy
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - persistentvolumeclaims
+      - replicationcontrollers
+      - replicationcontrollers/scale
+      - secrets
+      - serviceaccounts
+      - services
+      - services/proxy
+      - resourcequotas
+      - resourcequotas/status
+      - limitranges
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - bindings
+      - events
+      - pods/log
+      - pods/status
+      - replicationcontrollers/status
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - watch
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - impersonate
+  - apiGroups:
+      - apps
+    resources:
+      - daemonsets
+      - deployments
+      - deployments/rollback
+      - deployments/scale
+      - replicasets
+      - replicasets/scale
+      - statefulsets
+      - statefulsets/scale
+      - controllerrevisions
+      - ingresses
+      - replicationcontrollers/scale
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - autoscaling
+    resources:
+      - horizontalpodautoscalers
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - batch
+    resources:
+      - cronjobs
+      - jobs
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - extensions
+    resources:
+      - daemonsets
+      - deployments
+      - deployments/rollback
+      - deployments/scale
+      - ingresses
+      - networkpolicies
+      - replicasets
+      - replicasets/scale
+      - replicationcontrollers/scale
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - policy
+    resources:
+      - poddisruptionbudgets
+      - poddisruptionbudgets/status
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - networkpolicies
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - authorization.k8s.io
+    resources:
+      - localsubjectaccessreviews
+    verbs:
+      - create
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - rolebindings
+      - roles
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+      - events.k8s.io
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+      - update
+  - apiGroups:
+      - metrics.k8s.io
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: komp-service
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: managed-premium
+  resources:
+    requests:
+      storage: 1Gi
